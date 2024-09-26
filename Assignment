@@ -1,0 +1,47 @@
+ Django Trainee at Accuknox Assignment Solution.
+1) In default, Django signals are synchronous. Meaning when a signal is triggered, the corresponding reciever is also executed for the program to render completely. With the below mentioned functions you can observe that the handler waited for the signal.
+
+  from django.dispatch import Signal, receiver
+  from django.utils.timezone import now
+  import time
+  
+  # custom function
+  my_signal = Signal()
+  
+  # calculated delay
+  def my_signal_handler(sender, **kwargs):
+      print("Signal handler started")
+      time.sleep(5)  # Simulate long-running process
+      print("Signal handler finished")
+  
+  def test_signal_view(request):
+      start_time = now()
+      print(f"Signal triggered at: {start_time}")
+      
+      my_signal.send(sender=None)
+      end_time = now()
+  
+      print(f"Signal completed at: {end_time}")
+
+2) Yes, Django signals do run in the same thread as the caller and this can be connected to the previous question proving they are synchronous. The final execution is held until all the signals are processed. The code below can be used to find that both the functions are processed in the same thread.
+  from django.dispatch import Signal, receiver
+  import threading
+  
+  # custom function
+  my_signal = Signal()
+  
+  # receiver
+  def my_signal_handler(sender, **kwargs):
+      thread_id = threading.get_ident()  # Get the current thread ID
+      print(f"Signal handler running in thread: {thread_id}")
+
+  
+  def test_signal_view(request):
+      view_thread_id = threading.get_ident()  # Get the current thread ID in the view
+      print(f"View running in thread: {view_thread_id}")
+      
+      # Send the signal
+      my_signal.send(sender=None)
+
+3) 
+      
