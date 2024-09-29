@@ -23,7 +23,8 @@
   
       print(f"Signal completed at: {end_time}")
 
-2) Yes, Django signals do run in the same thread as the caller and this can be connected to the previous question proving they are synchronous. The final execution is held until all the signals are processed. The code below can be used to find that both the functions are processed in the same thread.
+2) Yes, Django signals do run in the same thread as the caller and this can be connected to the previous question proving they are synchronous.
+   The final execution is held until all the signals are processed. The code below can be used to find that both the functions are processed in the same thread.
   from django.dispatch import Signal, receiver
   import threading
   
@@ -43,5 +44,51 @@
       # Send the signal
       my_signal.send(sender=None)
 
-3) 
+3) Yes, Django signals do run in the same database transaction as the caller. This can proved by executing a database operation with an outer and inner transaction 
+   from a single handler. As you fail the outer transaction, the database changes made by the singal handler is also rolled back
+
+  
+    from django.db import models, transaction
+    from django.dispatch import Signal, receiver
+    from django.http import HttpResponse
+
+
+    class TestModel(models.Model):
+        name = models.CharField(max_length=100)
+        created_at = models.DateTimeField(auto_now_add=True)
+    
+        def __str__(self):
+            return self.name
+    
+    # Custom signal
+    my_signal = Signal()
+    
+    # Signal receiver that creates a database entry
+    @receiver(my_signal)
+    def my_signal_handler(sender, **kwargs):
+        print("Signal handler running")
+        TestModel.objects.create(name="Signal Handler Entry")
+    
+    # View to trigger the signal and simulate a rollback
+    def test_signal_view(request):
+        try:
+            # Transaction starts
+            with transaction.atomic():
+                # Create an object
+                TestModel.objects.create(name="View Entry")
+                
+                # Send the signal (will create an object)
+                my_signal.send(sender=None)
+                
+                # Simulate an error to trigger a transaction rollback
+                raise Exception("Simulating a transaction rollback")
+        
+        except Exception as e:
+            print(f"Exception occurred: {e}")
+        
+        # Check the database state
+        entries = TestModel.objects.all()
+        entry_list = ', '.join([entry.name for entry in entries])
+        return HttpResponse(f"Database entries: {entry_list}")
+
       
